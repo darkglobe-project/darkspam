@@ -11,7 +11,7 @@
 #define WHITE_LIST      "(^127\\.|^192\\.168\\.|^10\\.)"
 //  #define WHITE_LIST  "(^192\\.168\\.|^1\\.)"
 #define ACCESS_FILE                     "/etc/mail/access.db"
-#define DG_VERSION  "1.0"
+#define DG_VERSION  "1.1"
 
 /* Maximal message size */
 #define MAX_SIZE        131072 /* bytes */
