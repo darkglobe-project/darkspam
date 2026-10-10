@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <errno.h>
+#include <locale.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <libmilter/mfapi.h>
@@ -165,9 +166,17 @@ static void init_regex(void)
 
 int main (int argc, char **argv)
 {
-	int i_get=0, 
+	int i_get=0,
             i_ret=0;
 	const char *pc_ofile = NULL;
+
+	/* Pin the C locale.  Domains and addresses are lowercased before the
+	 * access.db lookup, and states are matched with toupper(): under a
+	 * single-byte LC_CTYPE those routines map octets >= 0x80, so two
+	 * different domains could fold to the same key and match the wrong
+	 * access.db entry.  Nothing else calls setlocale, so this makes the
+	 * current behaviour explicit rather than incidental. */
+	setlocale(LC_ALL, "C");
 
 	tzset();
     
@@ -1021,9 +1030,13 @@ static sfsistat dg_connect(SMFICTX *ctx, char *pc_name, _SOCK_ADDR *sa)
              break;
          case STATE_NOT_FOUND:
              securecpy (ca_domain, pc_name, MAXHOST);
+             /* The (unsigned char) cast is required: char is signed on the
+              * usual targets, so an octet >= 0x80 reaches tolower() as a
+              * negative int, which the C standard leaves undefined.  A
+              * hostname carrying UTF-8 or Latin-1 is enough to get there. */
              for (i = 0; ca_domain[i]; i++)
              {
-                    ca_domain[i] = tolower(ca_domain[i]);
+                    ca_domain[i] = tolower((unsigned char)ca_domain[i]);
              }
              // for ( ; *p; ++p) *p = tolower(*p);
              c2=c_search_domain (ca_domain, ca_found);
@@ -1128,9 +1141,10 @@ if (ca_mail_addr != NULL) {
     securecpy(ca_email, "unknown", MAXEMAIL);
 }
 
+             /* (unsigned char) cast required — see ca_domain above. */
              for (i = 0; ca_email[i]; i++)
              {
-                    ca_email[i] = tolower(ca_email[i]);
+                    ca_email[i] = tolower((unsigned char)ca_email[i]);
              }
 
              c=c_search_from_email (ca_email, ca_user, ca_domain, ca_subdomain, &c_part);
@@ -1205,9 +1219,10 @@ static sfsistat dg_envrcpt(SMFICTX *ctx, char **args)
     securecpy (ca_emai_tmp, ps_context->rcpt, MAXEMAIL);
     remove_all_chars(ca_emai_tmp, '<');
     remove_all_chars(ca_emai_tmp, '>');
+             /* (unsigned char) cast required — see ca_domain above. */
              for (i = 0; ca_emai_tmp[i]; i++)
              {
-                    ca_emai_tmp[i] = tolower(ca_emai_tmp[i]);
+                    ca_emai_tmp[i] = tolower((unsigned char)ca_emai_tmp[i]);
              }
 
     c=c_search_to_email (ca_emai_tmp, ca_user, ca_domain, ca_subdomain, &c_part);
